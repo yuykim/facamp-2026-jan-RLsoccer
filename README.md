@@ -40,3 +40,10 @@ This should return the following message without errors:
 ```
 gfootball env reset OK
 ```
+
+Run the following commands to make a random agent play a game and make a video recording:
+
+```bash
+python3 01_random_play.py
+./02_make_video.sh
+```
