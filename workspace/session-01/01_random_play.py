@@ -8,7 +8,7 @@ OUT_DIR = "frames"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 env = football_env.create_environment(
-    env_name="11_vs_11_competition",
+    env_name="11_vs_11_stochastic",
     render=True,
     write_video=False
 )
