@@ -4,7 +4,7 @@ from custom_reward import CustomReward
 import utils
 import os
 
-SCENARIO_NAME = "academy_corner"
+SCENARIO_NAME = "academy_pass_and_shoot_with_keeper"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "model.zip")
@@ -32,7 +32,7 @@ def main():
     done = False
     max_steps = 500
     total_reward = 0
-    max_episodes = 1  # 총 실행할 에피소드 횟수
+    max_episodes = 5  # 총 실행할 에피소드 횟수
     t = 0
 
 
@@ -47,11 +47,6 @@ def main():
         while not done and t < max_steps:
             action, _ = model.predict(obs, deterministic=True) # 결정적 행동 선택
             obs, reward, done, info = env.step(action)
-
-
-            frame = env.render(mode="rgb_array")
-            if frame is not None:
-                utils.save_frame(frame, t)
             
             episode_reward += reward
             
@@ -70,8 +65,8 @@ def main():
 
 if __name__ == "__main__":
 
-    utils.cleanup()
+    #utils.cleanup()
 
     main()
 
-    utils.make_video()
+    #utils.make_video()

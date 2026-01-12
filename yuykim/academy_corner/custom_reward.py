@@ -4,82 +4,79 @@ import gym
 class CustomReward(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
-        self.waiting_for_receiver = False
+        self.cb_indices = [2, 3]
         self.kicker_index = -1
-        self.prev_ball_owned = False
-        self.prev_game_mode = 0 # 0: Normal
+        self.is_cross_active = False  # 크로스가 공중에 떠 있는 상태인가?
+        self.last_cross_time = 0      # 크로스 시점 기록 (타이밍 체크용)
 
     def reset(self, **kwargs):
-        obs = self.env.reset(**kwargs)
-        obs_dict = self.obs_to_dict(obs)
-        self.waiting_for_receiver = False
         self.kicker_index = -1
-        self.prev_ball_owned = (obs_dict["ball_ownership"][1] == 1)
-        self.prev_game_mode = np.argmax(obs_dict["game_mode"])
-        return obs
+        self.is_cross_active = False
+        self.last_cross_time = 0
+        return self.env.reset(**kwargs)
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
         obs_dict = self.obs_to_dict(obs)
         
-        # 현재 상태 추출
-        current_ball_owned_team = np.argmax(obs_dict["ball_ownership"]) # 0:없음, 1:우리, 2:상대
-        current_ball_owned = (current_ball_owned_team == 1)
-        current_game_mode = np.argmax(obs_dict["game_mode"])
-        active_player_idx = np.argmax(obs_dict["active_player"])
+        ball_pos = obs_dict["ball"][:2]
+        active_idx = np.argmax(obs_dict["active_player"])
+        owned_team = np.argmax(obs_dict["ball_ownership"]) # 0:없음, 1:아군, 2:적군
 
-        # --- 보상 로직 ---
+        # --- [1. 크로스 시도 감지] ---
+        # 키커가 롱킥(10)을 시도하면 '크로스 모드' 활성화
+        if action == 10 and owned_team == 1:
+            if ball_pos[0] > 0.7: # 코너 부근에서 찼을 때
+                self.is_cross_active = True
+                self.kicker_index = active_idx
+                reward += 0.5 # 크로스 시도 자체에 대한 칭찬
+                print(f">> 크로스 올라감! (Active)")
 
-        # [케이스 1] 롱킥(Action 10) 성공 보상 (+0.2)
-        if action == 10 and current_ball_owned:
-            self.waiting_for_receiver = True
-            self.kicker_index = active_player_idx
+        # --- [2. 핵심: 원터치 슈팅 연계 보상] ---
+        if self.is_cross_active:
+            # 공이 박스 안에 들어왔고, 아군이 다시 소유했을 때
+            if ball_pos[0] > 0.75 and abs(ball_pos[1]) < 0.25:
+                if owned_team == 1 and active_idx != self.kicker_index:
+                    
+                    # [전술 A] 센터백이 공을 받자마자 슛(12)을 시도할 때 (초대박 보상)
+                    if active_idx in self.cb_indices:
+                        if action == 12:
+                            reward += 5.0  # 원터치 슈팅에 강력한 보상
+                            print(f">> ★ 센터백({active_idx}) 원터치 헤더/발리 슈팅!! (+5.0)")
+                        else:
+                            reward += 0.5  # 공을 받기만 해도 칭찬
+                    
+                    # 공을 받았으므로 크로스 시퀀스 종료
+                    self.is_cross_active = False
 
-        if self.waiting_for_receiver:
-            if current_ball_owned and active_player_idx != self.kicker_index:
-                reward += 0.2
-                self.waiting_for_receiver = False
-                print(f">> 롱킥 전달 성공! (+0.2)")
-            elif current_ball_owned_team == 2 or done:
-                self.waiting_for_receiver = False
+        # --- [3. 골키퍼 방해 보상 (상시)] ---
+        if ball_pos[0] > 0.7:
+            opp_gk_pos = obs_dict["right_team"][0:2]
+            for i in range(1, 11):
+                if i in self.cb_indices or i == self.kicker_index: continue
+                p_pos = obs_dict["left_team"][i*2 : i*2+2]
+                if np.linalg.norm(p_pos - opp_gk_pos) < 0.05:
+                    reward += 0.02
 
-        # [케이스 2] 라인 아웃 및 소유권 변경 감점 (-0.3)
-        # 조건: 인플레이(Normal) 상황이었다가 세트피스 상황으로 변했는데, 소유권이 상대에게 있을 때
-        if self.prev_game_mode == 0 and current_game_mode != 0:
-            if current_ball_owned_team == 2: # 상대방 공이 됨 (드로인, 골킥 등)
-                reward -= 0.3
-                print(f">> 라인 아웃! 상대에게 소유권 넘어감 (-0.3) | 모드: {current_game_mode}")
-
-        # [케이스 3] 기본 득점 보상
-        if reward > 0.9:
-            print(">> 골!!! (+1.0)")
-
-        # --- 상태 업데이트 ---
-        self.prev_ball_owned = current_ball_owned
-        self.prev_game_mode = current_game_mode
+        # --- [4. 결과 처리] ---
+        # 공이 뺏기면 리셋 (효율성)
+        if owned_team == 2:
+            done = True
+            # 감점 제거 (사용자 요청: 나가는 것에 대한 감점 없음)
         
+        # 득점 보상
+        if reward > 0.9: # 슛 시도 후 골이 들어가면
+            reward += 10.0
+            print(">> GOAL!!!")
+
         return obs, reward, done, info
 
     def obs_to_dict(self, obs):
-        # 22 - (x,y) coordinates of left team players
-        # 22 - (x,y) direction of left team players
-        # 22 - (x,y) coordinates of right team players
-        # 22 - (x, y) direction of right team players
-        # 3 - (x, y and z) - ball position
-        # 3 - ball direction
-        # 3 - one hot encoding of ball ownership (noone, left, right)
-        # 11 - one hot encoding of which player is active
-        # 7 - one hot encoding of `game_mode`
-
+        # (기존 obs_to_dict 로직 유지)
         obs_dict = {}
         obs_dict["left_team"] = obs[0:22]
-        obs_dict["left_team_direction"] = obs[22:44]
         obs_dict["right_team"] = obs[44:66]
-        obs_dict["right_team_direction"] = obs[66:88]
         obs_dict["ball"] = obs[88:91]
-        obs_dict["ball_direction"] = obs[91:94]
         obs_dict["ball_ownership"] = obs[94:97]
         obs_dict["active_player"] = obs[97:108]
-        obs_dict["game_mode"] = obs[108:115]
-
         return obs_dict
