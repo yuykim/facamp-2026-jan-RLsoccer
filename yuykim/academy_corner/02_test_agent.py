@@ -27,7 +27,7 @@ def main():
 
     obs = env.reset()
 
-    model = PPO.load(MODEL_PATH)
+    model = PPO.load(MODEL_PATH, device="cpu")
 
     done = False
     max_steps = 500
@@ -49,9 +49,9 @@ def main():
             obs, reward, done, info = env.step(action)
 
 
-            frame = env.render(mode="rgb_array")
-            if frame is not None:
-                utils.save_frame(frame, t)
+            #frame = env.render(mode="rgb_array")
+            #if frame is not None:
+            #    utils.save_frame(frame, t)
             
             episode_reward += reward
             
@@ -70,8 +70,8 @@ def main():
 
 if __name__ == "__main__":
 
-    utils.cleanup()
+    #utils.cleanup()
 
     main()
 
-    utils.make_video()
+    #utils.make_video()
