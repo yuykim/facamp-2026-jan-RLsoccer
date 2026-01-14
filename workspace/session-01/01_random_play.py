@@ -8,9 +8,7 @@ OUT_DIR = "frames"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 env = football_env.create_environment(
-    env_name="11_vs_11_stochastic",
-    render=True,
-    write_video=False
+    env_name="11_vs_11_stochastic", render=True, write_video=False
 )
 
 obs = env.reset()
@@ -24,9 +22,11 @@ while (not done) and (t < max_steps):
     action = env.action_space.sample()  # random play
     obs, reward, done, info = env.step(action)
 
-    frame = env.render(mode="rgb_array")
-    if frame is not None:
-        Image.fromarray(frame).save(f"{OUT_DIR}/{t:05d}.png")
+    frame_bgr = env.render(mode="rgb_array")
+    if frame_bgr is not None:
+        # BGR to RGB
+        frame_rgb = frame_bgr[..., ::-1]
+        Image.fromarray(frame_rgb).save(f"{OUT_DIR}/{t:05d}.png")
 
     if t % 10 == 0:
         print(f"Step: {t}/{max_steps}", "Done:", done)
