@@ -8,7 +8,7 @@ def main():
     # 1. 경로 및 환경 설정
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     # 앞서 01_train.py에서 저장한 model 폴더 내의 최종 모델 경로
-    model_path = os.path.join(BASE_DIR, "model", "soccer_base_5000000_steps.zip")
+    model_path = os.path.join(BASE_DIR, "model", "final_model_custom_500k.zip")
 
     env = football_env.create_environment(
         env_name="5_vs_5", # 학습한 시나리오와 동일하게 설정

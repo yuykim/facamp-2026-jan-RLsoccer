@@ -6,4 +6,4 @@
     -v ./workspace:/workspace \
     -w /workspace \
     -p 8888:8888 \
-    gfootball:2.10.2-facamp.1
+    hisplan/gfootball:2.10.2-facamp.1
