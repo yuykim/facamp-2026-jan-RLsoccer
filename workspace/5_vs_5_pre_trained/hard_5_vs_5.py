@@ -29,7 +29,7 @@ if __name__ == "__main__":
     SAVE_DIR = os.path.join(BASE_DIR, "model")
     os.makedirs(SAVE_DIR, exist_ok=True)
 
-    LOAD_MODEL_PATH = os.path.join(SAVE_DIR, "soccer_base_5000000_steps.zip")
+    LOAD_MODEL_PATH = os.path.join(SAVE_DIR, "soccer_base_10000000_steps.zip")
 
     # M1 맥북을 위한 환경 개수 (2개)
     num_cpu = 2 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         print("--- No model found. Starting from scratch ---")
 
     checkpoint_callback = CheckpointCallback(
-        save_freq=max(1000000 // num_cpu, 1),
+        save_freq=max(500000 // num_cpu, 1),
         save_path=SAVE_DIR,
         name_prefix="hard_5_vs_5"
     )
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     print(f"[{num_cpu} Envs] Training Start!")
     
     # 이제 모델 자체가 n_envs=2로 생성되었으므로 에러가 날 수 없습니다.
-    model.learn(total_timesteps=5_000_000, callback=checkpoint_callback)
+    model.learn(total_timesteps=1_000_000, callback=checkpoint_callback)
 
     model.save(os.path.join(SAVE_DIR, "final_model_custom_500k"))
     env.close()

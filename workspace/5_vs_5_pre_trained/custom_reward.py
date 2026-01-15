@@ -6,42 +6,63 @@ class CustomReward(gym.Wrapper):
         super().__init__(env)
         self.prev_ball_ownership = None
         self.prev_active_player = None
+        self.prev_ball_x = None
+        self.steps_from_kickoff = 0  # 킥오프 이후 흐른 스텝 카운트
 
     def reset(self, **kwargs):
         self.prev_ball_ownership = None
         self.prev_active_player = None
+        self.prev_ball_x = None
+        self.steps_from_kickoff = 0
         return self.env.reset(**kwargs)
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
-        
-        # 1. 관측값 딕셔너리 변환
         d = self.obs_to_dict(obs)
         
-        # 2. 패스 보상 (Pass Reward)
-        # 조건: 공 소유권이 우리 팀(left)인데, 활성 플레이어 인덱스가 바뀌었다면 패스 성공으로 간주
+        # 게임 모드 확인 (킥오프나 일반 경기 중일 때 스텝 카운트 증가)
+        # game_mode: 0:Normal, 1:KickOff, 2:GoalKick, 3:FreeKick, 4:Corner, 5:ThrowIn, 6:Penalty
+        game_mode = np.argmax(d["game_mode"])
+        if game_mode == 0: # 정상 경기 진행 중일 때만 시간 흐름 체크
+            self.steps_from_kickoff += 1
+        elif game_mode == 1: # 킥오프 시점에는 카운트 초기화
+            self.steps_from_kickoff = 0
+
         current_ball_owned_by_us = (d["ball_ownership"][1] == 1.0)
         current_active_player = np.argmax(d["active_player"])
+        current_ball_x = d["ball"][0]
         
+        # 1. 득점 시 시간 보너스 (Time Bonus)
+        # 환경에서 기본으로 주는 reward가 1.0이면 우리가 골을 넣은 상황입니다.
+        if reward > 0:
+            # 빨리 넣을수록 보너스가 커짐 (최대 3000스텝 기준 역산)
+            # 1.0 (기본 득점) + 보너스 리워드
+            time_bonus = max(0, (3000 - self.steps_from_kickoff) * 0.0005) 
+            reward += time_bonus
+            self.steps_from_kickoff = 0 # 득점 후 초기화
+
+        # 2. 전진 패스 보상 (기존 유지)
         if self.prev_ball_ownership is not None:
-            # 우리 팀이 계속 공을 소유 중인데, 조종하는 선수가 바뀌었다면? -> 패스 전달 완료
             if current_ball_owned_by_us and self.prev_ball_ownership[1] == 1.0:
                 if current_active_player != self.prev_active_player:
-                    reward += 0.001  # 패스 성공 보상 (수치는 학습 보며 조절)
+                    if self.prev_ball_x is not None and current_ball_x > self.prev_ball_x:
+                        forward_gain = current_ball_x - self.prev_ball_x
+                        reward += (0.002 + forward_gain * 0.01)
+                    else:
+                        reward += 0.0005
+                    self.prev_ball_x = current_ball_x
+            
+            if not current_ball_owned_by_us:
+                self.prev_ball_x = None
+            elif self.prev_ball_x is None and current_ball_owned_by_us:
+                self.prev_ball_x = current_ball_x
 
-        # 3. 수비 보상 (Defense Reward)
-        # 상대방이 우리 골대(x = -1.0) 쪽으로 다가오는 것을 압박할 때 보상
-        ball_x = d["ball"][0]
-        if not current_ball_owned_by_us: # 공이 우리 소유가 아닐 때 (수비 상황)
-            # 우리 팀 선수들과 공 사이의 거리를 좁히면 보상 (압박 유도)
-            # 간단하게는 상대방이 우리 진영(ball_x < 0)에서 공을 가질 때 실점 페널티를 강화
-            if ball_x < -0.5:
-                reward -= 0.001 # 우리 진영 허용 페널티
-
-        # 4. 실점 페널티 (Conceding Penalty) - 매우 중요
-        # 기본 scoring 보상은 우리가 넣으면 +1이지만, 먹히면 -1이 아닐 때가 많음
-        if reward < 0: # 실점 시
-            reward -= 0.5 # 추가 감점으로 수비 의지 고취
+        # 3. 수비 페널티 및 4. 실점 페널티 (기존 유지)
+        if not current_ball_owned_by_us and current_ball_x < -0.5:
+            reward -= 0.001
+        
+        if reward < 0:
+            reward -= 0.5
 
         # 상태 업데이트
         self.prev_ball_ownership = d["ball_ownership"]
