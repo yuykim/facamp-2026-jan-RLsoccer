@@ -3,6 +3,7 @@ from stable_baselines3 import PPO
 import os
 import utils
 import rule_based_policy
+import time
 
 def main():
     # 1. 환경 생성
@@ -17,7 +18,7 @@ def main():
     agent = rule_based_policy.RuleBasedAgent(env)
     
     t = 0 # 비디오 프레임 번호 (전체 에피소드 통합)
-    total_episodes = 1
+    total_episodes = 10
 
     for ep in range(total_episodes):
         obs = env.reset()
@@ -32,6 +33,8 @@ def main():
         while (not done) and (step_count < max_steps):
             action = agent.get_action(obs)
             obs, reward, done, info = env.step(action)
+
+            #time.sleep(0.01)
 
             frame = env.render(mode="rgb_array")
             if frame is not None:
