@@ -91,7 +91,7 @@ def save_rich_visualization(df, save_name="model_report.jpg"):
     plt.show()
 
 if __name__ == "__main__":
-    MODEL_FOLDER = "./PPO_model" # 모델 폴더 경로 확인!
+    MODEL_FOLDER = "./custom_model" # 모델 폴더 경로 확인!
     
     # 1. 전 지표 데이터 수집 (episodes는 분산 측정을 위해 최소 10회 이상 추천)
     report_df = run_comprehensive_evaluation(MODEL_FOLDER, episodes=20, max_steps=3000)

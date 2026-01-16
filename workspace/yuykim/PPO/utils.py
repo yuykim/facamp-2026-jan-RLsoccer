@@ -6,9 +6,11 @@ from PIL import Image
 OUT_DIR = "frames"
 
 
-def save_frame(frame, step):
-    if frame is not None:
-        Image.fromarray(frame).save(f"{OUT_DIR}/{step:05d}.png")
+def save_frame(frame_bgr, step):
+    if frame_bgr is not None:
+        # BGR to RGB
+        frame_rgb = frame_bgr[..., ::-1]
+        Image.fromarray(frame_rgb).save(f"{OUT_DIR}/{step:05d}.png")
 
 
 def cleanup():

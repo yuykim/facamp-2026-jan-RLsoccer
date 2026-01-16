@@ -1,61 +1,58 @@
+import os
 import gfootball.env as football_env
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
-from stable_baselines3.common.env_util import make_vec_env
-from custom_reward import CustomReward
-import os
-import torch
+from stable_baselines3.common.vec_env import DummyVecEnv
+from custom_reward import CustomReward 
 
+# 1. 경로 설정
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SAVE_DIR = os.path.join(BASE_DIR, "custom_model")
+LOAD_MODEL_PATH = os.path.join(SAVE_DIR, "soccer_base_5000000_steps.zip")
+
+os.makedirs(SAVE_DIR, exist_ok=True)
+
+# 2. 환경 생성 함수 (정규화 없이 커스텀 리워드만 적용)
 def make_env():
-    def _init():
-        env = football_env.create_environment(
-            env_name="5_vs_5",
-            representation="simple115v2",
-            rewards="scoring",
-            render=False
-        )
-        env = CustomReward(env) 
-        return env
-    return _init
-
-if __name__ == "__main__":
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    SAVE_DIR = os.path.join(BASE_DIR, "model")
-    os.makedirs(SAVE_DIR, exist_ok=True)
-
-    LOAD_MODEL_PATH = os.path.join(SAVE_DIR, "soccer_base_5000000_steps.zip")
-
-    # M1 맥북을 위한 환경 개수 (2개)
-    num_cpu = 2 
-    env = make_vec_env(make_env(), n_envs=num_cpu)
-
-    # 1. 현재 환경에 맞는 '새 모델'을 먼저 만듭니다. (n_envs=2로 자동 설정됨)
-    model = PPO("MlpPolicy", env, verbose=1, device="cpu", n_steps=2048, batch_size=64)
-
-    # 2. 기존 모델에서 가중치(파라미터)만 로드하여 덮어씌웁니다.
-    if os.path.exists(LOAD_MODEL_PATH):
-        print(f"--- Loading weights from: {LOAD_MODEL_PATH} ---")
-        
-        # 모델 파일에서 파라미터만 추출
-        temp_model = PPO.load(LOAD_MODEL_PATH)
-        parameters = temp_model.get_parameters()
-        
-        # 새 모델에 주입
-        model.set_parameters(parameters)
-        print("--- Success: Weights transferred to new model with 2 Envs ---")
-    else:
-        print("--- No model found. Starting from scratch ---")
-
-    checkpoint_callback = CheckpointCallback(
-        save_freq=max(100000 // num_cpu, 1),
-        save_path=SAVE_DIR,
-        name_prefix="custom_retrain"
+    env = football_env.create_environment(
+        env_name="5_vs_5",
+        render=False,
+        representation="simple115v2",
+        rewards="scoring,checkpoint"
     )
+    # 정규화 대신 커스텀 리워드로 직접 보상 체계 조절
+    env = CustomReward(env)
+    return env
 
-    print(f"[{num_cpu} Envs] Training Start!")
+
+env = make_env()
+
+# 4. 체크포인트 콜백
+checkpoint_callback = CheckpointCallback(
+    save_freq=100_000,
+    save_path=SAVE_DIR,
+    name_prefix="custom_retrained"
+)
+
+# 5. 기존 모델 불러오기
+if os.path.exists(LOAD_MODEL_PATH):
+    print(f"Loading existing model: {LOAD_MODEL_PATH}")
+    # 정규화(VecNormalize) 없이 모델만 로드
+    model = PPO.load(LOAD_MODEL_PATH, env=env, device="cpu", verbose=1)
     
-    # 이제 모델 자체가 n_envs=2로 생성되었으므로 에러가 날 수 없습니다.
-    model.learn(total_timesteps=500_000, callback=checkpoint_callback)
+    # [팁] 정규화를 안 쓸 경우, 학습률을 평소보다 낮게 설정하면 훨씬 안정적입니다.
+    # model.learning_rate = 0.0001 
+else:
+    print(f"Model file not found. Starting from scratch.")
+    model = PPO("MlpPolicy", env, verbose=1)
 
-    model.save(os.path.join(SAVE_DIR, "final_model_custom_500k"))
-    env.close()
+# 6. 학습 시작
+print(f"Start training without Normalization... Checkpoints in: '{SAVE_DIR}'")
+model.learn(total_timesteps=500_000, callback=checkpoint_callback, reset_num_timesteps=False)
+
+# 7. 최종 모델 저장
+final_path = os.path.join(SAVE_DIR, "final_model_no_norm.zip")
+model.save(final_path)
+
+env.close()
+print(f"Training Complete! Final model saved at: {final_path}")
