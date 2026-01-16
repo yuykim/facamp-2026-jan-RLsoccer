@@ -174,11 +174,10 @@ def print_summary(stats):
     print("Evaluation Summary (scoring)")
     print("==============================")
     print(f"Episodes           : {episodes}")
-    print(f"Max steps / game   : {max_steps}")
     print(f"Total Home Score   : {total_home}")
     print(f"Total Away Score   : {total_away}")
     print(f"Avg score / game   : {avg_home:.3f} - {avg_away:.3f}")
-
+    print("==============================")
     # requested lines
     if h_fast is None:
         print("Fastest home goal step : N/A")
@@ -188,7 +187,7 @@ def print_summary(stats):
         print(f"Fastest home goal step : {h_fast}")
         print(f"Latest home goal step  : {h_late}")
         print(f"Avg home goal step     : {h_avg:.1f}")
-
+    print("==============================")
     if c_fast is None:
         print("Fastest concede step   : N/A")
         print("Latest concede step    : N/A")
