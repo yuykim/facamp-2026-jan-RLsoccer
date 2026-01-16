@@ -1,48 +1,54 @@
 import gfootball.env as football_env
+from stable_baselines3 import PPO
+import os
+import utils
 import rule_based_policy
 
-# 1. 환경 생성
-env = football_env.create_environment(
-    env_name="academy_run_to_score_with_keeper",
-    render=True,
-    representation="simple115v2"
-)
+def main():
+    # 1. 환경 생성
+    env = football_env.create_environment(
+        env_name="academy_run_to_score_with_keeper",
+        render=True,
+        representation="simple115v2",
+        write_video=False 
+    )
 
-# 2. 규칙 기반 에이전트 적용
-agent = rule_based_policy.RuleBasedAgent(env)
+    # 2. 규칙 기반 에이전트 초기화
+    agent = rule_based_policy.RuleBasedAgent(env)
+    
+    t = 0 # 비디오 프레임 번호 (전체 에피소드 통합)
+    total_episodes = 1
 
-total_episodes = 10
+    for ep in range(total_episodes):
+        obs = env.reset()
+        done = False
+        step_count = 0 # 해당 에피소드의 스텝 카운트
+        max_steps = 3000 
+        total_reward = 0
 
-all_reward = 0
-all_step = 0
+        print(f"--- Episode {ep + 1} Start ---")
 
-for ep in range(total_episodes):
-    obs = agent.reset()  # 경기가 시작될 때 딱 한 번 초기화
-    done = False
-    step_count = 0
-    ep_reward = 0
+        # t 대신 step_count를 조건으로 사용해야 모든 에피소드가 정상 작동합니다.
+        while (not done) and (step_count < max_steps):
+            action = agent.get_action(obs)
+            obs, reward, done, info = env.step(action)
 
-    print(f"--- ep {ep + 1} start ---")
+            frame = env.render(mode="rgb_array")
+            if frame is not None:
+                utils.save_frame(frame, t) # 프레임 저장은 누적 스텝 t 사용
 
-    while not done:
-        # 규칙 기반 액션 결정
-        action = agent.get_action(obs)
-        
-        # 액션 실행 (int로 변환하여 안전하게 전달)
-        obs, reward, done, info = agent.step(action)
-        
-        ep_reward += reward
-        step_count += 1
+            if reward != 0:
+                print(f"Ep: {ep+1} | Step: {step_count} | Reward: {reward}")
 
-        # 무한 루프 방지를 위한 안전장치 (선택 사항)
-        if step_count > 3000:
-            break
+            t += 1
+            step_count += 1
+            total_reward += reward
 
-    print(f"ep {ep + 1} done | total_reawrd: {ep_reward} | total_step: {step_count}")
-    all_reward += ep_reward
-    all_step += step_count
+        print(f"Episode {ep + 1} Done | Total Reward: {total_reward} | Total Steps: {step_count}")
 
-print("--------------------------------")
-print(f"all ep done | all_reawrd: {all_reward} | all_step: {all_step}")
+    env.close()
 
-env.close()
+if __name__ == "__main__":
+    utils.cleanup()
+    main()
+    utils.make_video()
