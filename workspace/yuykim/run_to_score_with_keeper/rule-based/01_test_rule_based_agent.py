@@ -34,11 +34,11 @@ def main():
             action = agent.get_action(obs)
             obs, reward, done, info = env.step(action)
 
-            #time.sleep(0.01)
+            time.sleep(0.01)
 
-            frame = env.render(mode="rgb_array")
-            if frame is not None:
-                utils.save_frame(frame, t) # 프레임 저장은 누적 스텝 t 사용
+            #frame = env.render(mode="rgb_array")
+            #if frame is not None:
+            #    utils.save_frame(frame, t) # 프레임 저장은 누적 스텝 t 사용
 
             if reward != 0:
                 print(f"Ep: {ep+1} | Step: {step_count} | Reward: {reward}")
@@ -52,6 +52,6 @@ def main():
     env.close()
 
 if __name__ == "__main__":
-    utils.cleanup()
+    #utils.cleanup()
     main()
-    utils.make_video()
+    #utils.make_video()
