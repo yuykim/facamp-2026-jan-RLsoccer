@@ -39,7 +39,7 @@ run.bat
 Once inside the container, you can run the following command to check if everything is set up correctly:
 
 ```bash
-cd /workspace/session-01
+cd /workspace/lab-01
 python3 00_smoke_test.py
 ```
 
@@ -56,4 +56,4 @@ python3 01_random_play.py
 ./02_make_video.sh
 ```
 
-![random-play](./workspace/session-01/demo-random-play.gif)
+![random-play](./workspace/lab-01/demo-random-play.gif)
