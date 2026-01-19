@@ -9,16 +9,19 @@ def main():
     # 1. 환경 생성
     env = football_env.create_environment(
         env_name="academy_run_to_score_with_keeper",
-        render=True,
+        render=False,
         representation="simple115v2",
-        write_video=False 
+        write_video=False,
+        logdir="log",
+        write_goal_dumps=True,
+        write_full_episode_dumps=True 
     )
 
     # 2. 규칙 기반 에이전트 초기화
     agent = rule_based_policy.RuleBasedAgent(env)
     
     t = 0 # 비디오 프레임 번호 (전체 에피소드 통합)
-    total_episodes = 10
+    total_episodes = 1
 
     for ep in range(total_episodes):
         obs = env.reset()
@@ -36,9 +39,9 @@ def main():
 
             time.sleep(0.01)
 
-            #frame = env.render(mode="rgb_array")
-            #if frame is not None:
-            #    utils.save_frame(frame, t) # 프레임 저장은 누적 스텝 t 사용
+            frame = env.render(mode="rgb_array")
+            if frame is not None:
+                utils.save_frame(frame, t) # 프레임 저장은 누적 스텝 t 사용
 
             if reward != 0:
                 print(f"Ep: {ep+1} | Step: {step_count} | Reward: {reward}")
@@ -52,6 +55,6 @@ def main():
     env.close()
 
 if __name__ == "__main__":
-    #utils.cleanup()
+    utils.cleanup()
     main()
-    #utils.make_video()
+    utils.make_video()

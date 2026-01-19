@@ -64,7 +64,7 @@ class RuleBasedAgent(gym.Wrapper):
             # 공격 시: 내가 공을 가졌을 때
             
             # [수정된 슈팅 로직] 거리 0.6 이상이거나 키퍼가 근접했을 때
-            if my_x > 0.4 or dist_to_keeper < 0.2:
+            if my_x > 0.6 or dist_to_keeper < 0.365:
                 self.is_aiming = True
                 # 키퍼가 나보다 아래(y > my_y) 있으면 위쪽 구석으로 조준
                 # 키퍼가 나보다 위(y < my_y) 있으면 아래쪽 구석으로 조준
