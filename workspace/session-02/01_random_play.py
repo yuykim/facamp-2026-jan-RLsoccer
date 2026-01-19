@@ -25,9 +25,9 @@ def run_scenario():
         action = env.action_space.sample()  # random play
         obs, reward, done, info = env.step(action)
 
-        # frame = env.render(mode="rgb_array")
-        #if frame is not None:
-        #    utils.save_frame(frame, t)
+        frame = env.render(mode="rgb_array")
+        if frame is not None:
+            utils.save_frame(frame, t)
 
         if t % 10 == 0:
             print(f"Step: {t}/{max_steps}", "Reward:", reward, "Done:", done)
@@ -42,8 +42,8 @@ def run_scenario():
 
 if __name__ == "__main__":
 
-    # utils.cleanup()
+    utils.cleanup()
 
     run_scenario()
 
-    # utils.make_video()
+    utils.make_video()
